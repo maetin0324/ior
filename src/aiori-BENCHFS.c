@@ -16,6 +16,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <mpi.h>
+#include <errno.h>
+#include <sys/stat.h>
+
 
 #include "ior.h"
 #include "aiori.h"
@@ -74,6 +77,7 @@ static option_help * BENCHFS_options(
 /************************** I N I T I A L I Z E *****************************/
 
 static void BENCHFS_Initialize(aiori_mod_opt_t *options) {
+  benchfs_options_t *o = (benchfs_options_t*)options;
   WARNF("BENCHFS initialized (rank %d/%d) - CLIENT MODE", benchfs_rank, benchfs_size);
   char node_id[64];
   snprintf(node_id, sizeof(node_id), "client_%d", benchfs_rank);
@@ -109,7 +113,7 @@ static aiori_fd_t *BENCHFS_Create(
     aiori_mod_opt_t *options
 ) {
   if (!benchfs_initialized) {
-    ERRF("BENCHFS not initialized in create");
+    ERR("BENCHFS not initialized in create");
   }
 
   if (verbose > 4) {
