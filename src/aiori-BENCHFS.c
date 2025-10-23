@@ -74,40 +74,13 @@ static option_help * BENCHFS_options(
 /************************** I N I T I A L I Z E *****************************/
 
 static void BENCHFS_Initialize(aiori_mod_opt_t *options) {
-  if (benchfs_initialized) {
-    return;
+  WARNF("BENCHFS initialized (rank %d/%d) - CLIENT MODE", benchfs_rank, benchfs_size);
+  char node_id[64];
+  snprintf(node_id, sizeof(node_id), "client_%d", benchfs_rank);
+  benchfs_ctx = benchfs_init(node_id, o->registry_dir, NULL, 0); // ← すべてクライアント
+  if (benchfs_ctx == NULL) {
+    ERRF("BENCHFS client initialization failed: %s", benchfs_get_error());
   }
-
-  benchfs_options_t *o = (benchfs_options_t*)options;
-
-  /* Get MPI rank and size */
-  MPI_Comm_rank(MPI_COMM_WORLD, &benchfs_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &benchfs_size);
-
-  /* Initialize BenchFS C API */
-  if (benchfs_rank == 0) {
-    WARNF("BENCHFS initialized (rank %d/%d) - SERVER MODE", benchfs_rank, benchfs_size);
-    fprintf(out_logfile, "BENCHFS: Registry dir: %s\n", o->registry_dir);
-    fprintf(out_logfile, "BENCHFS: Data dir: %s\n", o->data_dir);
-
-    /* Start server */
-    benchfs_ctx = benchfs_init("server", o->registry_dir, o->data_dir, 1);
-    if (benchfs_ctx == NULL) {
-      ERRF("BENCHFS server initialization failed: %s", benchfs_get_error());
-    }
-  } else {
-    WARNF("BENCHFS initialized (rank %d/%d) - CLIENT MODE", benchfs_rank, benchfs_size);
-
-    /* Start client */
-    char node_id[64];
-    snprintf(node_id, sizeof(node_id), "client_%d", benchfs_rank);
-    benchfs_ctx = benchfs_init(node_id, o->registry_dir, NULL, 0);
-    if (benchfs_ctx == NULL) {
-      ERRF("BENCHFS client initialization failed: %s", benchfs_get_error());
-    }
-  }
-
-  benchfs_initialized = 1;
 }
 
 /************************** F I N A L I Z E *****************************/
@@ -270,9 +243,6 @@ static void BENCHFS_Sync(aiori_mod_opt_t *options) {
   if (verbose > 4) {
     fprintf(out_logfile, "BENCHFS sync: rank=%d\n", benchfs_rank);
   }
-
-  /* Global sync - use MPI barrier */
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 /************************** G E T _ F I L E _ S I Z E *****************************/
@@ -347,10 +317,16 @@ static int BENCHFS_stat(
     struct stat *buf,
     aiori_mod_opt_t *options
 ) {
-  /* Return dummy stat */
-  memset(buf, 0, sizeof(struct stat));
+  (void)options;
+  memset(buf, 0, sizeof(*buf));
+  off_t sz = benchfs_get_file_size(benchfs_ctx, (char*)path);
+  if (sz < 0) {
+    errno = ENOENT;
+    return -1;
+  }
   buf->st_mode = S_IFREG | 0644;
-  buf->st_size = 0;
+  buf->st_nlink = 1;
+  buf->st_size = (off_t)sz;
   return 0;
 }
 
