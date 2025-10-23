@@ -130,10 +130,9 @@ endif
 
 if USE_BENCHFS_AIORI
 extraSOURCES += aiori-BENCHFS.c
-extraCPPFLAGS += -I$(top_srcdir)/../benchfs_backend/include
-BENCHFS_LIB_PATH = $(top_srcdir)/../../target/release
-extraLDFLAGS += -L$(BENCHFS_LIB_PATH) -Wl,-rpath=$(BENCHFS_LIB_PATH)
-extraLDADD += -lbenchfs -lpthread -ldl -lm
+extraCPPFLAGS += @BENCHFS_CFLAGS@
+extraLDFLAGS += @BENCHFS_RPATH@
+extraLDADD += @BENCHFS_LIBS@
 endif
 
 if USE_S3_4C_AIORI
