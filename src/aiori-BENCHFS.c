@@ -15,10 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <mpi.h>
 #include <errno.h>
-#include <sys/stat.h>
-
+#include <mpi.h>
 
 #include "ior.h"
 #include "aiori.h"
@@ -77,14 +75,30 @@ static option_help * BENCHFS_options(
 /************************** I N I T I A L I Z E *****************************/
 
 static void BENCHFS_Initialize(aiori_mod_opt_t *options) {
-  benchfs_options_t *o = (benchfs_options_t*)options;
-  WARNF("BENCHFS initialized (rank %d/%d) - CLIENT MODE", benchfs_rank, benchfs_size);
-  char node_id[64];
-  snprintf(node_id, sizeof(node_id), "client_%d", benchfs_rank);
-  benchfs_ctx = benchfs_init(node_id, o->registry_dir, NULL, 0); // ← すべてクライアント
-  if (benchfs_ctx == NULL) {
-    ERRF("BENCHFS client initialization failed: %s", benchfs_get_error());
+  if (benchfs_initialized) {
+    return;
   }
+
+  benchfs_options_t *o = (benchfs_options_t*)options;
+
+  /* Get MPI rank and size first */
+  MPI_Comm_rank(MPI_COMM_WORLD, &benchfs_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &benchfs_size);
+
+  /* All processes run as clients - BenchFS server should be started separately */
+  WARNF("BENCHFS initialized (rank %d/%d) - CLIENT MODE", benchfs_rank, benchfs_size);
+  fprintf(out_logfile, "BENCHFS: Registry dir: %s\n", o->registry_dir);
+
+  /* Initialize as client */
+  char node_id[64];
+  snprintf(node_id, sizeof(node_id), "ior_client_%d", benchfs_rank);
+  benchfs_ctx = benchfs_init(node_id, o->registry_dir, NULL, 0);
+  if (benchfs_ctx == NULL) {
+    ERRF("BENCHFS client initialization failed: %s. Make sure BenchFS servers are running!",
+         benchfs_get_error());
+  }
+
+  benchfs_initialized = 1;
 }
 
 /************************** F I N A L I Z E *****************************/
@@ -113,7 +127,7 @@ static aiori_fd_t *BENCHFS_Create(
     aiori_mod_opt_t *options
 ) {
   if (!benchfs_initialized) {
-    ERR("BENCHFS not initialized in create");
+    ERR("BENCHFS not initialized in create\n");
   }
 
   if (verbose > 4) {
@@ -143,7 +157,7 @@ static aiori_fd_t *BENCHFS_Open(
     aiori_mod_opt_t *options
 ) {
   if (!benchfs_initialized) {
-    ERR("BENCHFS not initialized in open");
+    ERR("BENCHFS not initialized in open\n");
   }
 
   if (verbose > 4) {
@@ -223,7 +237,16 @@ static void BENCHFS_Delete(char *testFileName, aiori_mod_opt_t *options) {
   /* Call BenchFS C API */
   int ret = benchfs_remove(benchfs_ctx, testFileName);
   if (ret != BENCHFS_SUCCESS) {
-    ERRF("BENCHFS remove failed: %s", benchfs_get_error());
+    /* File may not exist - this is not necessarily an error in IOR context */
+    /* IOR sometimes tries to delete files before creating them */
+    const char *err_msg = benchfs_get_error();
+    if (strstr(err_msg, "File not found") || strstr(err_msg, "not found")) {
+      if (verbose >= 3) {
+        WARNF("BENCHFS remove: file not found (this may be expected): %s", testFileName);
+      }
+    } else {
+      WARNF("BENCHFS remove failed: %s", err_msg);
+    }
   }
 }
 
@@ -360,7 +383,7 @@ static int BENCHFS_check_params(aiori_mod_opt_t *options) {
   benchfs_options_t *o = (benchfs_options_t*)options;
 
   if (o->registry_dir == NULL || strlen(o->registry_dir) == 0) {
-    ERR("BENCHFS: registry_dir must be specified");
+    ERR("BENCHFS: registry_dir must be specified\n");
     return 1;
   }
 
