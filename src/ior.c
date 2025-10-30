@@ -179,6 +179,9 @@ IOR_test_t * ior_run(int argc, char **argv, MPI_Comm world_com, FILE * world_out
 
         PrintLongSummaryAllTests(tests_head);
 
+        /* Ensure all ranks wait for rank 0 to complete JSON output before finalizing */
+        MPI_CHECK(MPI_Barrier(world_com), "barrier error after PrintLongSummaryAllTests");
+
         /* display finish time */
         PrintTestEnds();
         return tests_head;
@@ -235,6 +238,9 @@ int ior_main(int argc, char **argv)
             /* always print final summary */
             verbose = VERBOSE_1;
     PrintLongSummaryAllTests(tests_head);
+
+    /* Ensure all ranks wait for rank 0 to complete JSON output before finalizing */
+    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD), "barrier error after PrintLongSummaryAllTests");
 
     /* display finish time */
     PrintTestEnds();
