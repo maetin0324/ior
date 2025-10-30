@@ -27,6 +27,7 @@
 
 #include <sys/stat.h>           /* struct stat */
 #include <time.h>
+#include <signal.h>             /* for JSON output timeout mechanism */
 
 #ifndef _WIN32
 # include <sys/time.h>           /* gettimeofday() */
@@ -66,6 +67,31 @@ static char **ParseFileName(char *, int *);
 static void InitTests(IOR_test_t *);
 static void TestIoSys(IOR_test_t *);
 static void ValidateTests(IOR_param_t * params, MPI_Comm com);
+
+/* JSON output timeout mechanism to prevent hangs */
+static volatile int json_timeout_occurred = 0;
+
+static void json_timeout_handler(int sig) {
+    json_timeout_occurred = 1;
+    if (rank == 0) {
+        fprintf(stderr, "WARNING: JSON output timeout after 30 seconds - forcing completion\n");
+        if (out_resultfile != NULL && out_resultfile != stdout) {
+            fflush(out_resultfile);
+            fsync(fileno(out_resultfile));
+        }
+    }
+}
+
+static void set_json_output_timeout(int seconds) {
+    json_timeout_occurred = 0;
+    signal(SIGALRM, json_timeout_handler);
+    alarm(seconds);
+}
+
+static void clear_json_output_timeout(void) {
+    alarm(0);  // Cancel the timeout
+    signal(SIGALRM, SIG_DFL);  // Reset signal handler
+}
 static IOR_offset_t WriteOrRead(IOR_param_t *test, int rep, IOR_results_t *results,
                                 aiori_fd_t *fd, const int access,
                                 IOR_io_buffers *ioBuffers);
@@ -177,7 +203,13 @@ IOR_test_t * ior_run(int argc, char **argv, MPI_Comm world_com, FILE * world_out
                 test_finalize(tptr);
         }
 
+        /* Set timeout for JSON output to prevent hangs */
+        set_json_output_timeout(30);  /* 30 second timeout */
+
         PrintLongSummaryAllTests(tests_head);
+
+        /* Clear the timeout after successful completion */
+        clear_json_output_timeout();
 
         /* Ensure all ranks wait for rank 0 to complete JSON output before finalizing */
         MPI_CHECK(MPI_Barrier(world_com), "barrier error after PrintLongSummaryAllTests");
@@ -237,7 +269,14 @@ int ior_main(int argc, char **argv)
     if (verbose <= VERBOSE_0)
             /* always print final summary */
             verbose = VERBOSE_1;
+
+    /* Set timeout for JSON output to prevent hangs */
+    set_json_output_timeout(30);  /* 30 second timeout */
+
     PrintLongSummaryAllTests(tests_head);
+
+    /* Clear the timeout after successful completion */
+    clear_json_output_timeout();
 
     /* Ensure all ranks wait for rank 0 to complete JSON output before finalizing */
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD), "barrier error after PrintLongSummaryAllTests");

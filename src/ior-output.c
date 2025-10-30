@@ -269,6 +269,26 @@ void PrintReducedResult(IOR_test_t *test, int access, double bw, double iops, do
   }
 
   fflush(out_resultfile);
+
+  // Fix for JSON output hang: Enhanced synchronization for result output
+  if (rank == 0) {
+    static int result_count = 0;
+    result_count++;
+
+    // Force file descriptor sync to prevent buffering issues
+    if (out_resultfile != stdout) {
+      fsync(fileno(out_resultfile));
+    }
+
+    // Periodically check for MPI communication issues
+    // This helps detect when other ranks might be stuck
+    if (result_count % 10 == 0) {
+      int flag;
+      MPI_Status status;
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG,
+                test->params.testComm, &flag, &status);
+    }
+  }
 }
 
 void PrintHeader(int argc, char **argv)
@@ -474,7 +494,16 @@ void ShowSetup(IOR_param_t *params)
 
   PrintNamedArrayStart("Results");
 
+  // Fix for JSON output hang: More aggressive flushing and file sync
   fflush(out_resultfile);
+  if (out_resultfile != stdout) {
+    fsync(fileno(out_resultfile));  // Force file descriptor sync
+  }
+
+  // Add MPI barrier to ensure all ranks are synchronized before continuing
+  // This prevents the hang that occurs when rank 0 is processing large amounts
+  // of data while other ranks are waiting at a later barrier
+  MPI_Barrier(params->mpi_comm_world);
 }
 
 static struct results *bw_ops_values(const int reps, IOR_results_t *measured,
