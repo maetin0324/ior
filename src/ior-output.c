@@ -503,7 +503,7 @@ void ShowSetup(IOR_param_t *params)
   // Add MPI barrier to ensure all ranks are synchronized before continuing
   // This prevents the hang that occurs when rank 0 is processing large amounts
   // of data while other ranks are waiting at a later barrier
-  MPI_Barrier(params->mpi_comm_world);
+  // MPI_Barrier(params->mpi_comm_world);
 }
 
 static struct results *bw_ops_values(const int reps, IOR_results_t *measured,
