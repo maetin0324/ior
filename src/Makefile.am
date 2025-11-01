@@ -117,6 +117,21 @@ extraLDFLAGS += @CHFS_RPATH@
 extraLDADD += @CHFS_LIBS@
 endif
 
+if USE_FINCHFS_AIORI
+extraSOURCES += aiori-FINCHFS.c
+extraCPPFLAGS += @FINCHFS_CFLAGS@
+extraLDFLAGS += @FINCHFS_RPATH@
+extraLDADD += @FINCHFS_LIBS@
+endif
+
+if USE_BENCHFS_AIORI
+extraSOURCES += aiori-BENCHFS.c
+extraCPPFLAGS += -I$(top_srcdir)/../benchfs_backend/include
+BENCHFS_LIB_PATH = $(top_srcdir)/../../target/release
+extraLDFLAGS += -L$(BENCHFS_LIB_PATH) -Wl,-rpath=$(BENCHFS_LIB_PATH)
+extraLDADD += -lbenchfs -lpthread -ldl -lm
+endif
+
 if USE_S3_4C_AIORI
 extraSOURCES  += aiori-S3-4c.c
 if AWS4C_DIR
