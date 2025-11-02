@@ -92,7 +92,7 @@ static void clear_json_output_timeout(void) {
     alarm(0);  // Cancel the timeout
     signal(SIGALRM, SIG_DFL);  // Reset signal handler
 }
-static IOR_offset_t WriteOrRead(IOR_param_t *test, int rep, IOR_results_t *results,
+static IOR_offset_t WriteOrRead(IOR_param_t *test, IOR_results_t *results,
                                 aiori_fd_t *fd, const int access,
                                 IOR_io_buffers *ioBuffers);
 

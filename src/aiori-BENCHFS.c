@@ -86,15 +86,6 @@ static void BENCHFS_Initialize(aiori_mod_opt_t *options) {
   MPI_Comm_rank(MPI_COMM_WORLD, &benchfs_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &benchfs_size);
 
-  /* Get hostname */
-  char gethostname_buf[256];
-  gethostname(gethostname_buf, sizeof(gethostname_buf));
-
-  if( benchfs_rank == 0) {
-    fprintf(out_logfile, "BENCHFS Initializing rank0 at hostname %s\n", gethostname_buf);
-    fprintf(out_logfile, "BENCHFS ior pid %d\n", getpid());
-  }
-
   /* Initialize BenchFS C API in CLIENT MODE for all ranks
    *
    * NOTE: IOR connects to an existing BenchFS cluster that is already running
@@ -444,7 +435,7 @@ ior_aiori_t benchfs_aiori = {
     .open = BENCHFS_Open,
     .xfer = BENCHFS_Xfer,
     .close = BENCHFS_Close,
-    .remove = BENCHFS_Delete,
+    .delete = BENCHFS_Delete,
     .get_version = BENCHFS_get_version,
     .fsync = BENCHFS_Fsync,
     .get_file_size = BENCHFS_GetFileSize,
