@@ -99,6 +99,9 @@ ior_aiori_t *available_aiori[] = {
 #ifdef USE_BENCHFS_AIORI
 	&benchfs_aiori,
 #endif
+#ifdef USE_BENCHFSMINI_AIORI
+	&benchfsmini_aiori,
+#endif
         NULL
 };
 
