@@ -381,12 +381,12 @@ PKG_CHECK_MODULES([BENCHFS], [benchfs],
 AM_CONDITIONAL([USE_BENCHFS_AIORI], [test x$with_benchfs != xno])
 
 # BENCHFSMINI support
-PKG_CHECK_MODULES([BENCHFSMINI], [benchfs],
-  [AC_DEFINE([USE_BENCHFSMINI_AIORI], [], [Build BENCHFSMINI backend AIORI])
-   BENCHFSMINI_RPATH=$(pkg-config --libs-only-L benchfs | sed 's/-L/-Wl,-rpath=/g')
-   AC_SUBST(BENCHFSMINI_RPATH)],
-  [with_benchfsmini=no])
-AM_CONDITIONAL([USE_BENCHFSMINI_AIORI], [test x$with_benchfsmini != xno])
+# PKG_CHECK_MODULES([BENCHFSMINI], [benchfs],
+#   [AC_DEFINE([USE_BENCHFSMINI_AIORI], [], [Build BENCHFSMINI backend AIORI])
+#    BENCHFSMINI_RPATH=$(pkg-config --libs-only-L benchfs | sed 's/-L/-Wl,-rpath=/g')
+#    AC_SUBST(BENCHFSMINI_RPATH)],
+#   [with_benchfsmini=no])
+# AM_CONDITIONAL([USE_BENCHFSMINI_AIORI], [test x$with_benchfsmini != xno])
 
 # aws4c is needed for the S3 backend (see --with-S3, below).
 # Version 0.5.2 of aws4c is available at https://github.com/jti-lanl/aws4c.git
