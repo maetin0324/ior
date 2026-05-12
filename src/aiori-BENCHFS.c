@@ -220,6 +220,16 @@ static IOR_offset_t BENCHFS_Xfer(
     ret = benchfs_write((benchfs_file_t*)file, buffer, length, offset);
   } else {
     ret = benchfs_read((benchfs_file_t*)file, buffer, length, offset);
+    /* IOR (ior.c:1726) treats `amtXferred != transfer` as a fatal error.
+     * After a stonewalled IOR write the file is shorter than the read
+     * phase expects; BenchFS correctly returns a short read at EOF,
+     * which would abort the run. Zero-pad the tail so IOR's strict
+     * length check passes — matches what most parallel filesystems do
+     * implicitly via sparse-file zero-fill. */
+    if (ret >= 0 && ret < length) {
+      memset((char*)buffer + ret, 0, length - ret);
+      ret = length;
+    }
   }
 
   if (ret < 0) {
